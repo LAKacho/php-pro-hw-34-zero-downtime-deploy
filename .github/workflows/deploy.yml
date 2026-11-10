@@ -1,0 +1,32 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
+          APP_REPO: ${{ secrets.APP_REPO }}
+          CONFIG_FILE: ${{ secrets.CONFIG_FILE }}
+        run: |
+          ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_ROOT/config' '$DEPLOY_ROOT/releases' '$DEPLOY_ROOT/shared' '$DEPLOY_ROOT/repo'"
+          ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" "test -f '$CONFIG_FILE' || { echo 'Missing production config on server'; exit 1; }"
+          ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" "APP_REPO='$APP_REPO' CONFIG_FILE='$CONFIG_FILE' DEPLOY_ROOT='$DEPLOY_ROOT' bash -s" < deploy/deploy.sh
